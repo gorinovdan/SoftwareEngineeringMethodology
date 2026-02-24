@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Dune_Supply" targetNamespace="http://bpmn.io/schema/bpmn" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.12.0">
+  <bpmn:collaboration id="Collaboration_DuneSupply">
+    <bpmn:participant id="Participant_Dispatcher" name="Диспетчер снабжения Харконенов" processRef="Process_Dispatcher" />
+    <bpmn:participant id="Participant_ThreatAI" name="Сервис прогноза атаки червей" processRef="Process_ThreatAI" />
+    <bpmn:participant id="Participant_Crew" name="Экипаж харвестера" processRef="Process_Crew" />
+    <bpmn:participant id="Participant_Security" name="Штаб безопасности" processRef="Process_Security" />
+    <bpmn:participant id="Participant_Insurance" name="Страховой модуль" processRef="Process_Insurance" />
+    <bpmn:messageFlow id="MessageFlow_01" sourceRef="Event_Dispatch_RequestRisk" targetRef="Task_Threat_Receive" />
+    <bpmn:messageFlow id="MessageFlow_02" sourceRef="Event_Threat_SendRisk" targetRef="Event_Dispatch_ReceiveRisk" />
+    <bpmn:messageFlow id="MessageFlow_03" sourceRef="Event_Dispatch_SendPlan" targetRef="Task_Crew_ReceivePlan" />
+    <bpmn:messageFlow id="MessageFlow_04" sourceRef="Event_Dispatch_Cancel" targetRef="Task_Insurance_Cancel" />
+    <bpmn:messageFlow id="MessageFlow_05" sourceRef="Event_Crew_Alert" targetRef="Task_Security_Assess" />
+    <bpmn:messageFlow id="MessageFlow_06" sourceRef="Event_Security_CommandEvac" targetRef="Task_Crew_Evacuate" />
+    <bpmn:messageFlow id="MessageFlow_07" sourceRef="Event_Security_SendIncident" targetRef="Task_Insurance_Recalc" />
+    <bpmn:messageFlow id="MessageFlow_08" sourceRef="Event_Crew_Complete" targetRef="Event_Dispatch_ReceiveDone" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Dispatcher" name="Процесс диспетчера" isExecutable="false">
+    <bpmn:startEvent id="Event_Dispatch_Start" name="Запрос на добычу">
+      <bpmn:outgoing>Flow_D_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Task_Dispatch_Plan" name="Сформировать рейс и оптимальный маршрут">
+      <bpmn:incoming>Flow_D_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_02</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateThrowEvent id="Event_Dispatch_RequestRisk" name="Запросить прогноз риска">
+      <bpmn:incoming>Flow_D_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_03</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_D_ReqRisk" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateCatchEvent id="Event_Dispatch_ReceiveRisk" name="Получить risk-score">
+      <bpmn:incoming>Flow_D_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_04</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_D_RecvRisk" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gateway_Dispatch_RiskOK" name="Риск допустим?">
+      <bpmn:incoming>Flow_D_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_05</bpmn:outgoing>
+      <bpmn:outgoing>Flow_D_06</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="Event_Dispatch_SendPlan" name="Передать план экипажу">
+      <bpmn:incoming>Flow_D_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_07</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_D_SendPlan" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateCatchEvent id="Event_Dispatch_ReceiveDone" name="Получить отчет о завершении">
+      <bpmn:incoming>Flow_D_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_08</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_D_RecvDone" />
+    </bpmn:intermediateCatchEvent>
+    <bpmn:sequenceFlow id="Flow_D_01" sourceRef="Event_Dispatch_Start" targetRef="Task_Dispatch_Plan" />
+    <bpmn:sequenceFlow id="Flow_D_02" sourceRef="Task_Dispatch_Plan" targetRef="Event_Dispatch_RequestRisk" />
+    <bpmn:sequenceFlow id="Flow_D_03" sourceRef="Event_Dispatch_RequestRisk" targetRef="Event_Dispatch_ReceiveRisk" />
+    <bpmn:sequenceFlow id="Flow_D_04" sourceRef="Event_Dispatch_ReceiveRisk" targetRef="Gateway_Dispatch_RiskOK" />
+    <bpmn:sequenceFlow id="Flow_D_05" name="да" sourceRef="Gateway_Dispatch_RiskOK" targetRef="Event_Dispatch_SendPlan" />
+    <bpmn:sequenceFlow id="Flow_D_06" name="нет" sourceRef="Gateway_Dispatch_RiskOK" targetRef="Event_Dispatch_Cancel" />
+    <bpmn:sequenceFlow id="Flow_D_07" sourceRef="Event_Dispatch_SendPlan" targetRef="Event_Dispatch_ReceiveDone" />
+    <bpmn:sequenceFlow id="Flow_D_08" sourceRef="Event_Dispatch_ReceiveDone" targetRef="Event_Dispatch_EndDone" />
+    <bpmn:intermediateThrowEvent id="Event_Dispatch_Cancel" name="Отменить рейс и уведомить страховой модуль">
+      <bpmn:incoming>Flow_D_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_D_09</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_D_Cancel" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="Event_Dispatch_EndCancel" name="Рейс отменен">
+      <bpmn:incoming>Flow_D_09</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_D_09" sourceRef="Event_Dispatch_Cancel" targetRef="Event_Dispatch_EndCancel" />
+    <bpmn:endEvent id="Event_Dispatch_EndDone" name="Рейс закрыт">
+      <bpmn:incoming>Flow_D_08</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_ThreatAI" name="Процесс прогноза" isExecutable="false">
+    <bpmn:startEvent id="Event_Threat_Start" name="Ожидание запроса риска">
+      <bpmn:outgoing>Flow_T_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_Threat_Receive" name="Получить параметры рейса">
+      <bpmn:incoming>Flow_T_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_T_02</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Threat_Calc" name="Рассчитать P(атаки) и risk-score">
+      <bpmn:incoming>Flow_T_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_T_03</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:intermediateThrowEvent id="Event_Threat_SendRisk" name="Отправить оценку риска">
+      <bpmn:incoming>Flow_T_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_T_04</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_T_SendRisk" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="Event_Threat_End" name="Прогноз завершен">
+      <bpmn:incoming>Flow_T_04</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_T_01" sourceRef="Event_Threat_Start" targetRef="Task_Threat_Receive" />
+    <bpmn:sequenceFlow id="Flow_T_02" sourceRef="Task_Threat_Receive" targetRef="Task_Threat_Calc" />
+    <bpmn:sequenceFlow id="Flow_T_03" sourceRef="Task_Threat_Calc" targetRef="Event_Threat_SendRisk" />
+    <bpmn:sequenceFlow id="Flow_T_04" sourceRef="Event_Threat_SendRisk" targetRef="Event_Threat_End" />
+  </bpmn:process>
+  <bpmn:process id="Process_Crew" name="Процесс экипажа" isExecutable="false">
+    <bpmn:sequenceFlow id="Flow_C_07" sourceRef="Task_Crew_Evacuate" targetRef="Event_Crew_EndEvac" />
+    <bpmn:sequenceFlow id="Flow_C_06" sourceRef="Event_Crew_Alert" targetRef="Task_Crew_Evacuate" />
+    <bpmn:sequenceFlow id="Flow_C_05" name="нет" sourceRef="Gateway_Crew_Threat" targetRef="Event_Crew_Complete" />
+    <bpmn:sequenceFlow id="Flow_C_04" name="да" sourceRef="Gateway_Crew_Threat" targetRef="Event_Crew_Alert" />
+    <bpmn:sequenceFlow id="Flow_C_03" sourceRef="Task_Crew_Execute" targetRef="Gateway_Crew_Threat" />
+    <bpmn:sequenceFlow id="Flow_C_02" sourceRef="Task_Crew_ReceivePlan" targetRef="Task_Crew_Execute" />
+    <bpmn:sequenceFlow id="Flow_C_01" sourceRef="Event_Crew_Start" targetRef="Task_Crew_ReceivePlan" />
+    <bpmn:endEvent id="Event_Crew_EndEvac" name="Эвакуация выполнена">
+      <bpmn:incoming>Flow_C_07</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:receiveTask id="Task_Crew_Evacuate" name="Получить команду и выполнить эвакуацию">
+      <bpmn:incoming>Flow_C_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_07</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:intermediateThrowEvent id="Event_Crew_Alert" name="Отправить тревогу в штаб">
+      <bpmn:incoming>Flow_C_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_06</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_C_Alert" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:exclusiveGateway id="Gateway_Crew_Threat" name="Обнаружен червь?">
+      <bpmn:incoming>Flow_C_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_04</bpmn:outgoing>
+      <bpmn:outgoing>Flow_C_05</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Task_Crew_Execute" name="Выполнить добычу и передавать телеметрию">
+      <bpmn:incoming>Flow_C_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_03</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:receiveTask id="Task_Crew_ReceivePlan" name="Получить план рейса">
+      <bpmn:incoming>Flow_C_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_02</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:startEvent id="Event_Crew_Start" name="Готовность экипажа">
+      <bpmn:outgoing>Flow_C_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:intermediateThrowEvent id="Event_Crew_Complete" name="Отправить отчет о завершении рейса">
+      <bpmn:incoming>Flow_C_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_08</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_C_Done" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="Event_Crew_EndDone" name="Рейс завершен">
+      <bpmn:incoming>Flow_C_08</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_C_08" sourceRef="Event_Crew_Complete" targetRef="Event_Crew_EndDone" />
+  </bpmn:process>
+  <bpmn:process id="Process_Security" name="Процесс штаба безопасности" isExecutable="false">
+    <bpmn:startEvent id="Event_Security_Start" name="Дежурство штаба">
+      <bpmn:outgoing>Flow_S_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="Task_Security_Assess" name="Получить тревогу, оценить SLA и риск">
+      <bpmn:incoming>Flow_S_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_02</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="Gateway_Security_Evac" name="Нужна эвакуация?">
+      <bpmn:incoming>Flow_S_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_03</bpmn:outgoing>
+      <bpmn:outgoing>Flow_S_04</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:intermediateThrowEvent id="Event_Security_CommandEvac" name="Отправить команду эвакуации">
+      <bpmn:incoming>Flow_S_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_05</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_S_Evac" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:intermediateThrowEvent id="Event_Security_SendIncident" name="Передать инцидент в страховой модуль">
+      <bpmn:incoming>Flow_S_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_S_06</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MessageEventDefinition_S_Incident" />
+    </bpmn:intermediateThrowEvent>
+    <bpmn:endEvent id="Event_Security_EndEvac" name="Инцидент обработан">
+      <bpmn:incoming>Flow_S_06</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_S_01" sourceRef="Event_Security_Start" targetRef="Task_Security_Assess" />
+    <bpmn:sequenceFlow id="Flow_S_02" sourceRef="Task_Security_Assess" targetRef="Gateway_Security_Evac" />
+    <bpmn:sequenceFlow id="Flow_S_03" name="да" sourceRef="Gateway_Security_Evac" targetRef="Event_Security_CommandEvac" />
+    <bpmn:sequenceFlow id="Flow_S_04" name="нет" sourceRef="Gateway_Security_Evac" targetRef="Event_Security_EndMonitor" />
+    <bpmn:sequenceFlow id="Flow_S_05" sourceRef="Event_Security_CommandEvac" targetRef="Event_Security_SendIncident" />
+    <bpmn:sequenceFlow id="Flow_S_06" sourceRef="Event_Security_SendIncident" targetRef="Event_Security_EndEvac" />
+    <bpmn:endEvent id="Event_Security_EndMonitor" name="Продолжить мониторинг">
+      <bpmn:incoming>Flow_S_04</bpmn:incoming>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmn:process id="Process_Insurance" name="Процесс страхового модуля" isExecutable="false">
+    <bpmn:startEvent id="Event_Insurance_Start" name="Ожидание события">
+      <bpmn:outgoing>Flow_I_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:eventBasedGateway id="Gateway_Insurance_Wait" name="Тип страхового события">
+      <bpmn:incoming>Flow_I_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_I_02</bpmn:outgoing>
+      <bpmn:outgoing>Flow_I_03</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+    <bpmn:receiveTask id="Task_Insurance_Cancel" name="Обработать отмену рейса">
+      <bpmn:incoming>Flow_I_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_I_04</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:receiveTask id="Task_Insurance_Recalc" name="Пересчитать риск по инциденту">
+      <bpmn:incoming>Flow_I_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_I_05</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:task id="Task_Insurance_Update" name="Обновить страховой полис и премию">
+      <bpmn:incoming>Flow_I_04</bpmn:incoming>
+      <bpmn:incoming>Flow_I_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_I_06</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Event_Insurance_End" name="Страховой кейс закрыт">
+      <bpmn:incoming>Flow_I_06</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_I_01" sourceRef="Event_Insurance_Start" targetRef="Gateway_Insurance_Wait" />
+    <bpmn:sequenceFlow id="Flow_I_02" sourceRef="Gateway_Insurance_Wait" targetRef="Task_Insurance_Cancel" />
+    <bpmn:sequenceFlow id="Flow_I_03" sourceRef="Gateway_Insurance_Wait" targetRef="Task_Insurance_Recalc" />
+    <bpmn:sequenceFlow id="Flow_I_04" sourceRef="Task_Insurance_Cancel" targetRef="Task_Insurance_Update" />
+    <bpmn:sequenceFlow id="Flow_I_05" sourceRef="Task_Insurance_Recalc" targetRef="Task_Insurance_Update" />
+    <bpmn:sequenceFlow id="Flow_I_06" sourceRef="Task_Insurance_Update" targetRef="Event_Insurance_End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_DuneSupply">
+    <bpmndi:BPMNPlane id="BPMNPlane_DuneSupply" bpmnElement="Collaboration_DuneSupply">
+      <bpmndi:BPMNShape id="Participant_Dispatcher_di" bpmnElement="Participant_Dispatcher" isHorizontal="true">
+        <dc:Bounds x="120" y="80" width="2320" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_Start_di" bpmnElement="Event_Dispatch_Start">
+        <dc:Bounds x="200" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Dispatch_Plan_di" bpmnElement="Task_Dispatch_Plan">
+        <dc:Bounds x="270" y="110" width="210" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_RequestRisk_di" bpmnElement="Event_Dispatch_RequestRisk">
+        <dc:Bounds x="530" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="512" y="94.5" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_ReceiveRisk_di" bpmnElement="Event_Dispatch_ReceiveRisk">
+        <dc:Bounds x="620" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Dispatch_RiskOK_di" bpmnElement="Gateway_Dispatch_RiskOK" isMarkerVisible="true">
+        <dc:Bounds x="700" y="125" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="684" y="101" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_SendPlan_di" bpmnElement="Event_Dispatch_SendPlan">
+        <dc:Bounds x="810" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="789" y="94.5" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_ReceiveDone_di" bpmnElement="Event_Dispatch_ReceiveDone">
+        <dc:Bounds x="900" y="132" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_Cancel_di" bpmnElement="Event_Dispatch_Cancel">
+        <dc:Bounds x="810" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="784" y="236.5" width="87" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_EndCancel_di" bpmnElement="Event_Dispatch_EndCancel">
+        <dc:Bounds x="900" y="202" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="882" y="238" width="72" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Dispatch_EndDone_di" bpmnElement="Event_Dispatch_EndDone">
+        <dc:Bounds x="998" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="984" y="168" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_D_01_di" bpmnElement="Flow_D_01">
+        <di:waypoint x="236" y="150" />
+        <di:waypoint x="270" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_02_di" bpmnElement="Flow_D_02">
+        <di:waypoint x="480" y="150" />
+        <di:waypoint x="530" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_03_di" bpmnElement="Flow_D_03">
+        <di:waypoint x="566" y="150" />
+        <di:waypoint x="620" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_04_di" bpmnElement="Flow_D_04">
+        <di:waypoint x="656" y="150" />
+        <di:waypoint x="700" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_05_di" bpmnElement="Flow_D_05">
+        <di:waypoint x="750" y="150" />
+        <di:waypoint x="810" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_06_di" bpmnElement="Flow_D_06">
+        <di:waypoint x="725" y="175" />
+        <di:waypoint x="725" y="220" />
+        <di:waypoint x="810" y="220" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="699" y="204" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_07_di" bpmnElement="Flow_D_07">
+        <di:waypoint x="846" y="150" />
+        <di:waypoint x="900" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_08_di" bpmnElement="Flow_D_08">
+        <di:waypoint x="936" y="150" />
+        <di:waypoint x="998" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_09_di" bpmnElement="Flow_D_09">
+        <di:waypoint x="846" y="220" />
+        <di:waypoint x="900" y="220" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_ThreatAI_di" bpmnElement="Participant_ThreatAI" isHorizontal="true">
+        <dc:Bounds x="120" y="313" width="2320" height="130" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Threat_Start_di" bpmnElement="Event_Threat_Start">
+        <dc:Bounds x="200" y="360" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="182" y="396" width="73" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Threat_Receive_di" bpmnElement="Task_Threat_Receive">
+        <dc:Bounds x="270" y="338" width="210" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Threat_Calc_di" bpmnElement="Task_Threat_Calc">
+        <dc:Bounds x="540" y="338" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Threat_SendRisk_di" bpmnElement="Event_Threat_SendRisk">
+        <dc:Bounds x="840" y="360" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="825" y="396" width="67" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Threat_End_di" bpmnElement="Event_Threat_End">
+        <dc:Bounds x="930" y="360" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="923" y="396" width="51" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_T_01_di" bpmnElement="Flow_T_01">
+        <di:waypoint x="236" y="378" />
+        <di:waypoint x="270" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_T_02_di" bpmnElement="Flow_T_02">
+        <di:waypoint x="480" y="378" />
+        <di:waypoint x="540" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_T_03_di" bpmnElement="Flow_T_03">
+        <di:waypoint x="780" y="378" />
+        <di:waypoint x="840" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_T_04_di" bpmnElement="Flow_T_04">
+        <di:waypoint x="876" y="378" />
+        <di:waypoint x="930" y="378" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Crew_di" bpmnElement="Participant_Crew" isHorizontal="true">
+        <dc:Bounds x="120" y="453" width="2320" height="217" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Crew_Start_di" bpmnElement="Event_Crew_Start">
+        <dc:Bounds x="200" y="515" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="189" y="551" width="58" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Crew_ReceivePlan_di" bpmnElement="Task_Crew_ReceivePlan">
+        <dc:Bounds x="270" y="493" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Crew_Execute_di" bpmnElement="Task_Crew_Execute">
+        <dc:Bounds x="520" y="493" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Crew_Threat_di" bpmnElement="Gateway_Crew_Threat" isMarkerVisible="true">
+        <dc:Bounds x="830" y="508" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="825" y="478.5" width="59" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Crew_Alert_di" bpmnElement="Event_Crew_Alert">
+        <dc:Bounds x="940" y="515" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="919" y="477.5" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Crew_Evacuate_di" bpmnElement="Task_Crew_Evacuate">
+        <dc:Bounds x="1030" y="493" width="250" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Crew_EndEvac_di" bpmnElement="Event_Crew_EndEvac">
+        <dc:Bounds x="1330" y="515" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1320" y="551" width="57" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Crew_Complete_di" bpmnElement="Event_Crew_Complete">
+        <dc:Bounds x="940" y="583" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="915" y="619" width="86" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Crew_EndDone_di" bpmnElement="Event_Crew_EndDone">
+        <dc:Bounds x="1030" y="583" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1009" y="619" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_C_01_di" bpmnElement="Flow_C_01">
+        <di:waypoint x="236" y="533" />
+        <di:waypoint x="270" y="533" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_02_di" bpmnElement="Flow_C_02">
+        <di:waypoint x="470" y="533" />
+        <di:waypoint x="520" y="533" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_03_di" bpmnElement="Flow_C_03">
+        <di:waypoint x="780" y="533" />
+        <di:waypoint x="830" y="533" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_04_di" bpmnElement="Flow_C_04">
+        <di:waypoint x="880" y="533" />
+        <di:waypoint x="940" y="533" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="903" y="513" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_05_di" bpmnElement="Flow_C_05">
+        <di:waypoint x="855" y="558" />
+        <di:waypoint x="855" y="601" />
+        <di:waypoint x="940" y="601" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="831" y="563" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_06_di" bpmnElement="Flow_C_06">
+        <di:waypoint x="976" y="533" />
+        <di:waypoint x="1030" y="533" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_07_di" bpmnElement="Flow_C_07">
+        <di:waypoint x="1280" y="533" />
+        <di:waypoint x="1330" y="533" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_08_di" bpmnElement="Flow_C_08">
+        <di:waypoint x="976" y="601" />
+        <di:waypoint x="1030" y="601" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Security_di" bpmnElement="Participant_Security" isHorizontal="true">
+        <dc:Bounds x="120" y="680" width="2320" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Security_Start_di" bpmnElement="Event_Security_Start">
+        <dc:Bounds x="200" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="190" y="768" width="56" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Security_Assess_di" bpmnElement="Task_Security_Assess">
+        <dc:Bounds x="270" y="710" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Security_Evac_di" bpmnElement="Gateway_Security_Evac" isMarkerVisible="true">
+        <dc:Bounds x="580" y="725" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="580" y="696" width="59" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Security_CommandEvac_di" bpmnElement="Event_Security_CommandEvac">
+        <dc:Bounds x="690" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="681" y="768" width="55" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Security_SendIncident_di" bpmnElement="Event_Security_SendIncident">
+        <dc:Bounds x="780" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="811" y="692.5" width="58" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Security_EndEvac_di" bpmnElement="Event_Security_EndEvac">
+        <dc:Bounds x="870" y="732" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="861" y="768" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Security_EndMonitor_di" bpmnElement="Event_Security_EndMonitor">
+        <dc:Bounds x="690" y="813" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="676" y="851" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_S_01_di" bpmnElement="Flow_S_01">
+        <di:waypoint x="236" y="750" />
+        <di:waypoint x="270" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_02_di" bpmnElement="Flow_S_02">
+        <di:waypoint x="530" y="750" />
+        <di:waypoint x="580" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_03_di" bpmnElement="Flow_S_03">
+        <di:waypoint x="630" y="750" />
+        <di:waypoint x="690" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="654" y="725" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_04_di" bpmnElement="Flow_S_04">
+        <di:waypoint x="605" y="775" />
+        <di:waypoint x="605" y="831" />
+        <di:waypoint x="690" y="831" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="611" y="779" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_05_di" bpmnElement="Flow_S_05">
+        <di:waypoint x="726" y="750" />
+        <di:waypoint x="780" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_S_06_di" bpmnElement="Flow_S_06">
+        <di:waypoint x="816" y="750" />
+        <di:waypoint x="870" y="750" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_Insurance_di" bpmnElement="Participant_Insurance" isHorizontal="true">
+        <dc:Bounds x="120" y="891" width="2320" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Insurance_Start_di" bpmnElement="Event_Insurance_Start">
+        <dc:Bounds x="200" y="948" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="192" y="984" width="53" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Insurance_Wait_di" bpmnElement="Gateway_Insurance_Wait" isMarkerVisible="true">
+        <dc:Bounds x="280" y="941" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="266" y="991" width="79" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Insurance_Cancel_di" bpmnElement="Task_Insurance_Cancel">
+        <dc:Bounds x="390" y="906" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Insurance_Recalc_di" bpmnElement="Task_Insurance_Recalc">
+        <dc:Bounds x="390" y="991" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Insurance_Update_di" bpmnElement="Task_Insurance_Update">
+        <dc:Bounds x="680" y="948" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_Insurance_End_di" bpmnElement="Event_Insurance_End">
+        <dc:Bounds x="990" y="970" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="968" y="1006" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_I_01_di" bpmnElement="Flow_I_01">
+        <di:waypoint x="236" y="966" />
+        <di:waypoint x="280" y="966" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_I_02_di" bpmnElement="Flow_I_02">
+        <di:waypoint x="330" y="966" />
+        <di:waypoint x="360" y="966" />
+        <di:waypoint x="360" y="946" />
+        <di:waypoint x="390" y="946" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_I_03_di" bpmnElement="Flow_I_03">
+        <di:waypoint x="330" y="966" />
+        <di:waypoint x="360" y="966" />
+        <di:waypoint x="360" y="1031" />
+        <di:waypoint x="390" y="1031" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_I_04_di" bpmnElement="Flow_I_04">
+        <di:waypoint x="610" y="946" />
+        <di:waypoint x="680" y="988" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_I_05_di" bpmnElement="Flow_I_05">
+        <di:waypoint x="610" y="1031" />
+        <di:waypoint x="680" y="988" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_I_06_di" bpmnElement="Flow_I_06">
+        <di:waypoint x="940" y="988" />
+        <di:waypoint x="990" y="988" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_01_di" bpmnElement="MessageFlow_01">
+        <di:waypoint x="548" y="168" />
+        <di:waypoint x="548" y="260" />
+        <di:waypoint x="434" y="338" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_02_di" bpmnElement="MessageFlow_02">
+        <di:waypoint x="858" y="360" />
+        <di:waypoint x="858" y="330" />
+        <di:waypoint x="1110" y="330" />
+        <di:waypoint x="1110" y="90" />
+        <di:waypoint x="638" y="90" />
+        <di:waypoint x="638" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_03_di" bpmnElement="MessageFlow_03">
+        <di:waypoint x="839" y="136" />
+        <di:waypoint x="910" y="110" />
+        <di:waypoint x="1050" y="110" />
+        <di:waypoint x="1050" y="470" />
+        <di:waypoint x="520" y="470" />
+        <di:waypoint x="440" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_04_di" bpmnElement="MessageFlow_04">
+        <di:waypoint x="811" y="224" />
+        <di:waypoint x="780" y="230" />
+        <di:waypoint x="780" y="930" />
+        <di:waypoint x="610" y="930" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_08_di" bpmnElement="MessageFlow_08">
+        <di:waypoint x="973" y="592" />
+        <di:waypoint x="1000" y="592" />
+        <di:waypoint x="998" y="190" />
+        <di:waypoint x="934" y="158" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_05_di" bpmnElement="MessageFlow_05">
+        <di:waypoint x="941" y="540" />
+        <di:waypoint x="890" y="560" />
+        <di:waypoint x="890" y="690" />
+        <di:waypoint x="610" y="690" />
+        <di:waypoint x="527" y="714" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_06_di" bpmnElement="MessageFlow_06">
+        <di:waypoint x="708" y="732" />
+        <di:waypoint x="708" y="620" />
+        <di:waypoint x="1030" y="557" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_07_di" bpmnElement="MessageFlow_07">
+        <di:waypoint x="798" y="768" />
+        <di:waypoint x="798" y="810" />
+        <di:waypoint x="1060" y="810" />
+        <di:waypoint x="1060" y="1060" />
+        <di:waypoint x="610" y="1060" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
